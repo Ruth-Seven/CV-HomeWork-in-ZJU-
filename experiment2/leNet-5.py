@@ -30,7 +30,7 @@ class LeNet(nn.Module):
         super().__init__()
 
         self.CP1 = ConvandPool(1, 6, 5, 1, 2, 2, 2)
-        self.CP2 = ConvandPool(6,16, 5, 1, 2, 2,2)
+        self.CP2 = ConvandPool(6, 16, 5, 1, 2, 2,2)
         self.CP3 = ConvandPool(16, 120, 5, 1, 2, 2, 2)
 
         self.fc1 = nn.Linear(3 * 3 * 120, 100)
