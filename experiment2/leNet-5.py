@@ -9,7 +9,7 @@ class LeNetConfig(Config):
     def __init__(self):
         super().__init__()
         self.batch_size = 64
-        self.num_epochs = 40
+        self.num_epochs = 20
 
 class ConvandPool(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,\
@@ -44,14 +44,14 @@ class LeNet(nn.Module):
         x = self.CP1(x)
         x = self.CP2(x)
         x = self.CP3(x)
-        # print(x.shape)
-        x = torch.flatten(x, 1)
 
-        fc1 = self.fc1(x)
-        fc1 = relu(fc1)
-        fc2 = self.fc2(fc1)
-        fc2 = softmax(fc2, 1)
-        return fc2
+        x = torch.flatten(x, 1)
+        # print(x.shape)
+        x = self.fc1(x)
+        x = relu(x)
+        x = self.fc2(x)
+        # x = softmax(x, 1)
+        return x
 
 
 import torchvision
