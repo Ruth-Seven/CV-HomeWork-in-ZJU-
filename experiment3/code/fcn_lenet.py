@@ -28,13 +28,14 @@ class FCNConfig(Config):
 
 
 class FCN_Lene32t(nn.Module):
-    def __init__(self, config, LeNet):
+    def __init__(self, config, lenet):
         super().__init__()
         self.to(config.device)
-        self.lenet = LeNet
+        self.lenet = lenet
 
         self.le_layer1 = self.lenet.CP1
         self.le_layer2 = self.lenet.CP2
+        self.le_layer3 = self.lenet.CP3
 
 
         self.transconv1 = nn.ConvTranspose2d(120, 60, kernel_size=3, stride=3, padding=1, dilation=1) # 7 * 7
@@ -47,7 +48,8 @@ class FCN_Lene32t(nn.Module):
 
 
     def forward(self, x):
-        x = self.transconv1(self.lenet(x))
+
+        x = self.transconv1(self.le_layer3(x))
         skip_link1 = x + self.le_layer2(x)
         x = self.transconv2(skip_link1)
         skip_link2 = x + self.le_layer1(x)
@@ -71,8 +73,11 @@ if '__main__' == __name__:
     minst_test_dataset = torchvision.datasets.MNIST(str(fcn_config.data_path), download=True, train=False,
                                                     transform=None)
     # 数据转化
-    train_dataset = TransAndCacheDataset(fcn_config, minst_train_dataset, AddBgandRes(fcn_config), train=True, reload=False, transformer=transform)
-    test_dataset = TransAndCacheDataset(fcn_config, minst_test_dataset, AddBgandRes(fcn_config), train=False, reload=False, transformer=transform)
+    train_dataset = TransAndCacheDataset(fcn_config, minst_train_dataset, AddBgandRes(fcn_config), train=True, reload=False, transformer=transform, target_transformer=None)
+    test_dataset = TransAndCacheDataset(fcn_config, minst_test_dataset, AddBgandRes(fcn_config), train=False, reload=False, transformer=transform,  target_transformer=None)
+
+    print("Data shape:", train_dataset[0][0].shape)
+    print("Target shape:", train_dataset[0][1].shape)
     # 设置Dataload
     train_dl = dataloader.DataLoader(train_dataset, fcn_config.batch_size, shuffle=fcn_config.shuffle, num_workers=fcn_config.dataset_workers)
     test_dl = dataloader.DataLoader(test_dataset, fcn_config.batch_size, shuffle = fcn_config.shuffle, num_workers =fcn_config.dataset_workers)

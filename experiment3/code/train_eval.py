@@ -47,6 +47,7 @@ def train(config, model, cost_function, train_dl, dev_dl, test_dl):
         train_iter = iter(train_dl)
         for i, (trains, labels) in enumerate(train_iter):
             trains, labels = trains.to(config.device), labels.to(config.device)
+
             outputs = model(trains)
             model.zero_grad()
             loss =cost_function(outputs, labels)  # + F.mse_loss()

@@ -15,6 +15,9 @@ class LeNetConfig(Config):
         self.weight = 28
         self.height = 28
 
+        # input_challens
+        self.input_channels = 3
+
 
 class ConvandPool(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,\
@@ -31,10 +34,10 @@ class ConvandPool(nn.Module):
         return x
 
 class LeNet(nn.Module):
-    def __init__(self, LeNetConfig):
+    def __init__(self, lenetconfig):
         super().__init__()
 
-        self.CP1 = ConvandPool(3, 6, 5, 1, 2, 2, 2) # 14 * 14
+        self.CP1 = ConvandPool(lenetconfig.input_channels, 6, 5, 1, 2, 2, 2) # 14 * 14
         self.CP2 = ConvandPool(6, 16, 5, 1, 2, 2,2) # 7 * 7
         self.CP3 = ConvandPool(16, 120, 5, 1, 2, 2, 2)# 3 * 3
 
@@ -42,7 +45,7 @@ class LeNet(nn.Module):
         self.fc2 = nn.Linear(100, 10)
 
         # 设置 data tpye of model weight
-        self.to(LeNetConfig.device)
+        self.to(lenetconfig.device)
 
 
     def forward(self, x):
