@@ -122,7 +122,7 @@ def test(config, model, test_dl):
     time_dif = get_time_dif(start_time)
     print("Time usage:", time_dif)
 
-
+import torch.nn.modules
 # 根据数据评价模型效果，计算acc和loss，在test状态下生成分类结果和confusion matrix
 def evaluate(config, model, data_dl, test=False):
     # 去除 dropout , norm标准化影响

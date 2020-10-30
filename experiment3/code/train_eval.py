@@ -26,7 +26,7 @@ def init_network(model, method='xavier', exclude='embedding', seed=123):
                 pass
 
 @cost_time
-def train(config, model, train_dl, dev_dl, test_dl):
+def train(config, model, cost_function, train_dl, dev_dl, test_dl):
     start_time = time.time()
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
@@ -49,7 +49,7 @@ def train(config, model, train_dl, dev_dl, test_dl):
             trains, labels = trains.to(config.device), labels.to(config.device)
             outputs = model(trains)
             model.zero_grad()
-            loss = F.cross_entropy(outputs, labels)  # + F.mse_loss()
+            loss =cost_function(outputs, labels)  # + F.mse_loss()
             loss.backward()
             optimizer.step()
             if total_batch % 100 == 0:
@@ -105,13 +105,13 @@ def train(config, model, train_dl, dev_dl, test_dl):
 
 
 # 在test集合上评估模型效果
-def test(config, model, test_dl):
+def test(config, model, cost_function, test_dl):
 
     model.load_state_dict(torch.load(str(config.save_path)))
     model.eval()
     start_time = time.time()
     # 获取模型结果
-    test_acc, test_loss, test_report, test_confusion = evaluate(config, model, test_dl, test=True)
+    test_acc, test_loss, test_report, test_confusion = evaluate(config, model, cost_function, test_dl, test=True)
     # 打印
     print("测试结果：")
     print(test_report)
@@ -124,7 +124,7 @@ def test(config, model, test_dl):
 
 import torch.nn.modules
 # 根据数据评价模型效果，计算acc和loss，在test状态下生成分类结果和confusion matrix
-def evaluate(config, model, data_dl, test=False):
+def evaluate(config, model, cost_function, data_dl, test=False):
     # 去除 dropout , norm标准化影响
     model.eval()
     loss_total = 0
@@ -137,7 +137,7 @@ def evaluate(config, model, data_dl, test=False):
             # 模型在数据进行loss运算
             texts, labels = texts.to(config.device), labels.to(config.device)
             outputs = model(texts)
-            loss = F.cross_entropy(outputs, labels)
+            loss = cost_function(outputs, labels)
             # if test:
             #     if config.set_L2:
             #         loss += L2_penalty(model)

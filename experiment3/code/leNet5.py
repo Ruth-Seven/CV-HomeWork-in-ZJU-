@@ -34,9 +34,9 @@ class LeNet(nn.Module):
     def __init__(self, LeNetConfig):
         super().__init__()
 
-        self.CP1 = ConvandPool(3, 6, 5, 1, 2, 2, 2)
-        self.CP2 = ConvandPool(6, 16, 5, 1, 2, 2,2)
-        self.CP3 = ConvandPool(16, 120, 5, 1, 2, 2, 2)
+        self.CP1 = ConvandPool(3, 6, 5, 1, 2, 2, 2) # 14 * 14
+        self.CP2 = ConvandPool(6, 16, 5, 1, 2, 2,2) # 7 * 7
+        self.CP3 = ConvandPool(16, 120, 5, 1, 2, 2, 2)# 3 * 3
 
         self.fc1 = nn.Linear(3 * 3 * 120, 100)
         self.fc2 = nn.Linear(100, 10)
@@ -59,13 +59,13 @@ class LeNet(nn.Module):
         return x
 
 
+
 import torchvision
 from torch.utils.data import dataset, dataloader
 from train_eval import *
 
 ## data transforms
 from torchvision import transforms
-from Mytransformer import AddBg
 
 
 if '__main__' == __name__:
@@ -74,7 +74,6 @@ if '__main__' == __name__:
 
     transform = transforms.Compose([
         # you can add other transformations in this list
-        AddBg(config),
         transforms.ToTensor()
     ])
 
