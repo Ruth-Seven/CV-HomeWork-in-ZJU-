@@ -144,7 +144,7 @@ class AddBgandRes(AddBg):
         pic_arr = np.array(pic)
         new_shape = list(pic_arr.shape)
         new_shape.append(10)
-        arr = np.zeros(new_shape, dtype=int)
+        arr = np.zeros(new_shape, dtype=np.uint8)
 
 
         label_arr = np.where(pic_arr[:, :]>0, 1, 0)

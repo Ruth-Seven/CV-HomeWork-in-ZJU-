@@ -30,7 +30,7 @@ class FCNConfig(Config):
 class FCN_Lene32t(nn.Module):
     def __init__(self, config, LeNet):
         super().__init__()
-        self.to(LeNetConfig.device)
+        self.to(config.device)
         self.lenet = LeNet
 
         self.le_layer1 = self.lenet.CP1
@@ -59,34 +59,34 @@ class FCN_Lene32t(nn.Module):
 if '__main__' == __name__:
 
 
-    le_config = FCNConfig('../')
+    fcn_config = FCNConfig('../')
     # 下载源数据
     # PIL image 对象需要 transform
     transform = transforms.Compose([
         # you can add other transformations in this list
         transforms.ToTensor()
     ])
-    minst_train_dataset = torchvision.datasets.MNIST(str(le_config.data_path), download=True, train=True,
+    minst_train_dataset = torchvision.datasets.MNIST(str(fcn_config.data_path), download=True, train=True,
                                                      transform=None)
-    minst_test_dataset = torchvision.datasets.MNIST(str(le_config.data_path), download=True, train=False,
+    minst_test_dataset = torchvision.datasets.MNIST(str(fcn_config.data_path), download=True, train=False,
                                                     transform=None)
     # 数据转化
-    train_dataset = TransAndCacheDataset(le_config, minst_train_dataset, AddBgandRes(le_config), train=True, reload=True, transformer=transform)
-    test_dataset = TransAndCacheDataset(le_config, minst_test_dataset, AddBgandRes(le_config), train=False, reload=True, transformer=transform)
+    train_dataset = TransAndCacheDataset(fcn_config, minst_train_dataset, AddBgandRes(fcn_config), train=True, reload=False, transformer=transform)
+    test_dataset = TransAndCacheDataset(fcn_config, minst_test_dataset, AddBgandRes(fcn_config), train=False, reload=False, transformer=transform)
     # 设置Dataload
-    train_dl = dataloader.DataLoader(train_dataset, config.batch_size, shuffle=config.shuffle, num_workers=config.dataset_workers)
-    test_dl = dataloader.DataLoader(test_dataset, config.batch_size, shuffle = config.shuffle, num_workers = config.dataset_workers)
+    train_dl = dataloader.DataLoader(train_dataset, fcn_config.batch_size, shuffle=fcn_config.shuffle, num_workers=fcn_config.dataset_workers)
+    test_dl = dataloader.DataLoader(test_dataset, fcn_config.batch_size, shuffle = fcn_config.shuffle, num_workers =fcn_config.dataset_workers)
     print(f"The length fo train dataset:{len(minst_train_dataset)}")
     print(f"The length fo test dataset:{len(minst_test_dataset)}")
 
     #建立模型
+    le_config = LeNetConfig()
     lenet = LeNet(le_config)
-    model = FCN_Lene32t(config, lenet)
+    model = FCN_Lene32t(fcn_config, lenet)
 
     # 训练模型
-    model = LeNet(le_config)
     cost_function = nn.BCEWithLogitsLoss()
-    train(config, model, cost_function, train_dl, None, test_dl )
+    train(fcn_config, model, cost_function, train_dl, None, test_dl )
 
 
 

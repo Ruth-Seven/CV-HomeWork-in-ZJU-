@@ -6,7 +6,7 @@ from config import *
 
 class LeNetConfig(Config):
     """配置参数"""
-    def __init__(self,path):
+    def __init__(self,path="../"):
         super().__init__(path)
         self.batch_size = 64
         self.num_epochs = 20
