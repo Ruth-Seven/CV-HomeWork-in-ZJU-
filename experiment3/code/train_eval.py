@@ -11,7 +11,7 @@ import time
 from utils import get_time_dif, cost_time
 from tensorboardX import SummaryWriter
 import torch.nn.modules
-
+import torchsnooper
 class Trainer(object):
     def __init__(self, config, model, cost_function=F.cross_entropy):
         self.config = config
@@ -178,6 +178,7 @@ class SegmentationTrainer(Trainer):
 
 
     @cost_time
+    # @torchsnooper.snoop()
     def train(self, train_dl, dev_dl, test_dl):
         start_time = time.time()
         self.model.train()
@@ -198,16 +199,17 @@ class SegmentationTrainer(Trainer):
             # scheduler.step() # 学习率衰减
             train_iter = iter(train_dl)
             for i, (trains, targets) in enumerate(train_iter):
+                optimizer.zero_grad()
                 trains, targets = trains.to(self.config.device), targets.to(self.config.device)
                 outputs = self.model(trains)
                 # 0 - 1化
-                outputs = F.softmax(outputs, dim=1)
-                self.model.zero_grad()
+                # outputs = F.softmax(outputs, dim=1)
+
                 loss = self.cost_function(outputs, targets)  # + F.mse_loss()
                 loss.backward()
                 optimizer.step()
-                if total_batch % 100 == 0:
 
+                if total_batch % 100 == 0:
                     train_acc, iou = self._cal_batch_acc_ios(targets, outputs)
                     # Show the singal of improvement
                     improve = ''
@@ -228,11 +230,11 @@ class SegmentationTrainer(Trainer):
                             improve = '*'
                             last_improve = total_batch
 
-                    # print each batch reslut
+                    # print each batch resluts
                     time_dif = get_time_dif(start_time)
                     self.print_batch_result(total_batch, loss, train_acc, dev_loss, dev_acc, time_dif, improve)
 
-                    # write result to tensorboard
+                    # write results to tensorboard
                     writer.add_scalar("loss/train", loss.item(), total_batch)
                     if dev_loss:
                         writer.add_scalar("loss/dev", dev_loss, total_batch)

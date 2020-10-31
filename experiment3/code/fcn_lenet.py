@@ -10,8 +10,8 @@ from leNet5 import LeNet
 from train_eval import SegmentationTrainer
 class FCNConfig(Config):
     """配置参数"""
-    def __init__(self,path="../"):
-        super().__init__(path)
+    def __init__(self,path="../", model="fcnmodel", pre_path=""):
+        super().__init__(path, model)
         self.batch_size = 64
         self.num_epochs = 20
         # 添加路径
@@ -25,6 +25,7 @@ class FCNConfig(Config):
         self.num_classes = 10
 
         #
+        self.pre_model_path = pre_path
 
 class Pre_Lenet(LeNet):
 
@@ -42,21 +43,6 @@ class Pre_Lenet(LeNet):
         return layer_out
 
 class FCN_Lene32t(nn.Module):
-    def __init__(self, config, lenet,path="../", model="fcn32model"):
-        super().__init__(path, model)
-        #载入预训练模型
-        self.lenet = lenet
-        self.lenet.load_state_dict(torch.load("D:\个人文件\重要文件\#2研究生在校\学习内容\计算机视觉导论\作业\experiment2\log\model\saved_dict\model.ckpt"))
-
-        self.transconv1 = nn.ConvTranspose2d(120, 16, kernel_size=3, stride=3, padding=1, dilation=1) # 7 * 7
-
-        self.transconv2 = nn.ConvTranspose2d(16, 6, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1) # 14 * 14
-
-        self.transconv3 = nn.ConvTranspose2d(6, 3, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)  # 28 * 28
-
-        self.classifier = nn.Conv2d(3, config.num_classes, kernel_size=1)
-        self.to(config.device)
-
     def forward(self, x):
         layer_out = self.lenet.forward(x)
 
@@ -70,15 +56,31 @@ class FCN_Lene32t(nn.Module):
         x = self.classifier(x)
         return x
 
+    def __init__(self, config, lenet):
+        super().__init__()
+        #载入预训练模型
+        self.lenet = lenet
+        if hasattr(config, "pre_model_path"):
+            print(f"载入模型{config.pre_model_path.name}")
+            self.lenet.load_state_dict(torch.load(config.pre_model_path))
+
+        self.transconv1 = nn.ConvTranspose2d(120, 16, kernel_size=3, stride=3, padding=1, dilation=1) # 7 * 7
+
+        self.transconv2 = nn.ConvTranspose2d(16, 6, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1) # 14 * 14
+
+        self.transconv3 = nn.ConvTranspose2d(6, 3, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)  # 28 * 28
+
+        self.classifier = nn.Conv2d(3, config.num_classes, kernel_size=1)
+        self.to(config.device)
+
 
 if '__main__' == __name__:
-
-
-    fcn_config = FCNConfig('../')
+    le_config = LeNetConfig()
+    fcn_config = FCNConfig(pre_path=le_config.save_path)
     # 下载源数据
     # PIL image 对象需要 transform
     transform = transforms.Compose([
-        # you can add other transformations in this list
+
         transforms.ToTensor()
     ])
     minst_train_dataset = torchvision.datasets.MNIST(str(fcn_config.data_path), download=True, train=True,
@@ -99,7 +101,7 @@ if '__main__' == __name__:
     print(f"The length fo test dataset:{len(minst_test_dataset)}")
 
     #建立模型
-    le_config = LeNetConfig()
+
     lenet = Pre_Lenet(le_config)
     model = FCN_Lene32t(fcn_config, lenet)
 
