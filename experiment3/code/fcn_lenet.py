@@ -6,7 +6,8 @@ from leNet5 import *
 
 from dataprocess import TransAndCacheDataset
 from Mytransformer import AddBgandRes
-
+from leNet5 import LeNet
+from train_eval import SegmentationTrainer
 class FCNConfig(Config):
     """配置参数"""
     def __init__(self,path="../"):
@@ -25,35 +26,47 @@ class FCNConfig(Config):
 
         #
 
-
-
-class FCN_Lene32t(nn.Module):
-    def __init__(self, config, lenet):
-        super().__init__()
-        self.to(config.device)
-        self.lenet = lenet
-
-        self.le_layer1 = self.lenet.CP1
-        self.le_layer2 = self.lenet.CP2
-        self.le_layer3 = self.lenet.CP3
-
-
-        self.transconv1 = nn.ConvTranspose2d(120, 60, kernel_size=3, stride=3, padding=1, dilation=1) # 7 * 7
-
-        self.transconv2 = nn.ConvTranspose2d(60, 30, kernel_size=3, stride=3, padding=4, dilation=1) # 14 * 14
-
-        self.transconv3 = nn.ConvTranspose2d(30, 10, kernel_size=3, stride=3, padding=8, dilation=1 )  # 14 * 14
-
-        self.classifier = nn.Conv2d(10, config.num_classes, kernel_size=1)
+class Pre_Lenet(LeNet):
 
 
     def forward(self, x):
+        pre_x = super().forward(x)
+        layer_out = {}
+        x1 = self.CP1(x)
+        x2 = self.CP2(x1)
+        x3 = self.CP3(x2)
+        layer_out["CP1"] = x1
+        layer_out["CP2"] = x2
+        layer_out["CP3"] = x3
+        layer_out["y"] = pre_x
+        return layer_out
 
-        x = self.transconv1(self.le_layer3(x))
-        skip_link1 = x + self.le_layer2(x)
-        x = self.transconv2(skip_link1)
-        skip_link2 = x + self.le_layer1(x)
-        x = self.transconv3(skip_link2)
+class FCN_Lene32t(nn.Module):
+    def __init__(self, config, lenet,path="../", model="fcn32model"):
+        super().__init__(path, model)
+        #载入预训练模型
+        self.lenet = lenet
+        self.lenet.load_state_dict(torch.load("D:\个人文件\重要文件\#2研究生在校\学习内容\计算机视觉导论\作业\experiment2\log\model\saved_dict\model.ckpt"))
+
+        self.transconv1 = nn.ConvTranspose2d(120, 16, kernel_size=3, stride=3, padding=1, dilation=1) # 7 * 7
+
+        self.transconv2 = nn.ConvTranspose2d(16, 6, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1) # 14 * 14
+
+        self.transconv3 = nn.ConvTranspose2d(6, 3, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)  # 28 * 28
+
+        self.classifier = nn.Conv2d(3, config.num_classes, kernel_size=1)
+        self.to(config.device)
+
+    def forward(self, x):
+        layer_out = self.lenet.forward(x)
+
+        x = self.transconv1(layer_out["CP3"])
+
+        skip_link2 = x + layer_out["CP2"]
+        x = self.transconv2(skip_link2)
+
+        skip_link1 = x + layer_out["CP1"]
+        x = self.transconv3(skip_link1)
         x = self.classifier(x)
         return x
 
@@ -73,8 +86,9 @@ if '__main__' == __name__:
     minst_test_dataset = torchvision.datasets.MNIST(str(fcn_config.data_path), download=True, train=False,
                                                     transform=None)
     # 数据转化
-    train_dataset = TransAndCacheDataset(fcn_config, minst_train_dataset, AddBgandRes(fcn_config), train=True, reload=False, transformer=transform, target_transformer=None)
-    test_dataset = TransAndCacheDataset(fcn_config, minst_test_dataset, AddBgandRes(fcn_config), train=False, reload=False, transformer=transform,  target_transformer=None)
+    reload = False
+    train_dataset = TransAndCacheDataset(fcn_config, minst_train_dataset, AddBgandRes(fcn_config), train=True, reload=reload, transformer=transform, target_transformer=None)
+    test_dataset = TransAndCacheDataset(fcn_config, minst_test_dataset, AddBgandRes(fcn_config), train=False, reload=reload, transformer=transform,  target_transformer=None)
 
     print("Data shape:", train_dataset[0][0].shape)
     print("Target shape:", train_dataset[0][1].shape)
@@ -86,12 +100,12 @@ if '__main__' == __name__:
 
     #建立模型
     le_config = LeNetConfig()
-    lenet = LeNet(le_config)
+    lenet = Pre_Lenet(le_config)
     model = FCN_Lene32t(fcn_config, lenet)
 
     # 训练模型
-    cost_function = nn.BCEWithLogitsLoss()
-    train(fcn_config, model, cost_function, train_dl, None, test_dl )
+    train = SegmentationTrainer(fcn_config, model, nn.BCEWithLogitsLoss())
+    train.train(train_dl, None, test_dl )
 
 
 

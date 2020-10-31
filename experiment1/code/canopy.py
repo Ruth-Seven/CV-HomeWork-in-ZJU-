@@ -8,17 +8,17 @@ class Canopy:
         self.t1 = t1
         self.t2 = t2
         self.device = device
-        self._labels = None
+        self._targets = None
 
     def fit(self, x):
         x = x.to(self.device)
         length = len(x)
-        labels = torch.zeros(length).to(self.device)
+        targets = torch.zeros(length).to(self.device)
         unvisited_indexes = torch.ones(length).to(self.device)
         indexes = torch.arange(length)
         while torch.sum(unvisited_indexes) > 0:
             canopy_center = torch.LongTensor(np.random.choice(indexes[unvisited_indexes == 1], 1)).to(self.device)
-            labels[canopy_center] = canopy_center.float()
+            targets[canopy_center] = canopy_center.float()
             unvisited_indexes[canopy_center] = 0
             dis = torch.sqrt(torch.sum((x-x[canopy_center])**2, dim=1))
             a = torch.zeros(length).to(self.device)
@@ -28,18 +28,18 @@ class Canopy:
             matched = a * b
             print(torch.sum(matched))
             # print(matched)
-            labels[matched == 1] = canopy_center.float()
+            targets[matched == 1] = canopy_center.float()
             a = torch.zeros(length).to(self.device)
             a[dis < self.t2] = 1
             deleted = a * b
             unvisited_indexes[deleted == 1] = 0
 
-        self._labels = labels
-        print(len(set(labels.to('cpu').numpy().tolist())))
+        self._targets = targets
+        print(len(set(targets.to('cpu').numpy().tolist())))
 
     @property
-    def labels_(self):
-        return self._labels
+    def targets_(self):
+        return self._targets
 
     def silhouette_score(self, x, labels):
         x = x.to(self.device)

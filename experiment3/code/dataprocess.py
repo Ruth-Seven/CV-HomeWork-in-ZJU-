@@ -7,7 +7,6 @@ from Mytransformer import *
 from  tqdm import tqdm
 
 class TransAndCacheDataset(Dataset):
-
     def __init__(self, config, dataset, pre_processer: AddBgandRes, train=True, reload=False,transformer=None,  target_transformer=None):
         super().__init__()
 
@@ -28,8 +27,14 @@ class TransAndCacheDataset(Dataset):
         self.data = [] # [ Img_1, Img_N]
         self.target = []  # [Label(W,H,10)......]
         self.len = 0
+
+        # functional test
+        self.test_model = False
+
         # preprocess
         self.create_dataset()
+
+
         if train:
             self.sample_show()
 
@@ -37,6 +42,7 @@ class TransAndCacheDataset(Dataset):
         return self.len
 
     def __getitem__(self, idx):
+
         return self._transform(self.data[idx]), self.target[idx]
 
     def _transform(self, item):
@@ -79,6 +85,9 @@ class TransAndCacheDataset(Dataset):
 
             self.target.append(label_ten.permute([2, 0, 1]))
             k += 1
+
+            if self.test_model and k == 5 :
+                break
         self.data_path.mkdir(parents=True, exist_ok=True)
         torch.save(self.data,  self.save_data)
         torch.save(self.target, self.save_target)

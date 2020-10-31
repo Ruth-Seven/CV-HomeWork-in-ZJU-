@@ -2,12 +2,16 @@
 
 from torch import nn
 from torch.nn.functional import softmax,relu
+from PIL import Image
+from train_eval import ClassiferTrainer
 from config import *
+
 
 class LeNetConfig(Config):
     """配置参数"""
-    def __init__(self,path="../"):
-        super().__init__(path)
+    def __init__(self,path="../", model="lemodel"):
+        super().__init__(path, model)
+        # train
         self.batch_size = 64
         self.num_epochs = 20
         # 添加路径
@@ -70,6 +74,12 @@ from train_eval import *
 ## data transforms
 from torchvision import transforms
 
+def c2ccc(img):
+    x = np.array(img)
+    arr2 = np.copy(x)
+    arr3 = np.copy(x)
+    newarr = np.dstack((x, arr2, arr3))
+    return Image.fromarray(newarr)
 
 if '__main__' == __name__:
 
@@ -77,6 +87,7 @@ if '__main__' == __name__:
 
     transform = transforms.Compose([
         # you can add other transformations in this list
+        lambda x: c2ccc(x),
         transforms.ToTensor()
     ])
 
@@ -90,7 +101,8 @@ if '__main__' == __name__:
     print(f"The length fo train dataset:{len(minst_train_dataset)}")
     print(f"The length fo test dataset:{len(minst_test_dataset)}")
 
-    train(config, model, train_dl, None, test_dl )
+    trainer = ClassiferTrainer(config, model, )
+    trainer.train(train_dl, None, test_dl )
 
 
 
