@@ -202,8 +202,7 @@ class SegmentationTrainer(Trainer):
                 optimizer.zero_grad()
                 trains, targets = trains.to(self.config.device), targets.to(self.config.device)
                 outputs = self.model(trains)
-                # 0 - 1化
-                # outputs = F.softmax(outputs, dim=1)
+
 
                 loss = self.cost_function(outputs, targets)  # + F.mse_loss()
                 loss.backward()
