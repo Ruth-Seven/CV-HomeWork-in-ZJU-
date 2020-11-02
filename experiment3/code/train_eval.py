@@ -11,7 +11,10 @@ import time
 from utils import get_time_dif, cost_time
 from tensorboardX import SummaryWriter
 import torch.nn.modules
+from numpy import random
+import numpy as np
 import torchsnooper
+
 class Trainer(object):
     def __init__(self, config, model, cost_function=F.cross_entropy):
         self.config = config
@@ -202,7 +205,8 @@ class SegmentationTrainer(Trainer):
                 optimizer.zero_grad()
                 trains, targets = trains.to(self.config.device), targets.to(self.config.device)
                 outputs = self.model(trains)
-
+                # debug:
+                ## Image.fromarray(self.targets[idx][5].numpy() * 255).show()
 
                 loss = self.cost_function(outputs, targets)  # + F.mse_loss()
                 loss.backward()
@@ -210,6 +214,7 @@ class SegmentationTrainer(Trainer):
 
                 if total_batch % 100 == 0:
                     train_acc, iou = self._cal_batch_acc_ios(targets, outputs)
+
                     # Show the singal of improvement
                     improve = ''
                     if dev_dl:
@@ -231,7 +236,7 @@ class SegmentationTrainer(Trainer):
 
                     # print each batch resluts
                     time_dif = get_time_dif(start_time)
-                    self.print_batch_result(total_batch, loss, train_acc, dev_loss, dev_acc, time_dif, improve)
+                    self.print_batch_result(total_batch, loss, train_acc, iou, dev_loss, dev_acc, time_dif, improve)
 
                     # write results to tensorboard
                     writer.add_scalar("loss/train", loss.item(), total_batch)
@@ -244,7 +249,9 @@ class SegmentationTrainer(Trainer):
 
 
                 total_batch += 1
-                if total_batch - last_improve > self.config.require_improvement:
+                # if    total_batch > 1000:
+                #     print(total_batch)
+                if total_batch - last_improve > self.config.require_improvement :
                     # 验证集loss超过1000batch没下降，结束训练
                     print("loss持续不下降，停止训练！")
                     flag = True
@@ -352,11 +359,13 @@ class SegmentationTrainer(Trainer):
 
         # print intermidiatelly result
 
-    def print_batch_result(self, total_batch, loss, train_acc, dev_loss, dev_acc, time_dif, improve):
+    def print_batch_result(self, total_batch, loss, train_acc, iou, dev_loss, dev_acc, time_dif, improve):
         if dev_loss:
-            msg = 'Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.2},  Val Acc: {4:>6.2%},  Time: {5} {6}'
-            print(msg.format(total_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
+            msg = 'Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  Train mIoU {3:>6.2%}, Val Loss: {3:>5.2},  Val Acc: {4:>6.2%},  Time: {5} {6}'
+            print(msg.format(total_batch, loss.item(), train_acc, np.array(iou).mean(), dev_loss, dev_acc, time_dif, improve))
         else:
-            msg = 'Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  Time: {3} {4} '
-            print(msg.format(total_batch, loss.item(), train_acc, time_dif, improve))
+            msg = 'Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  Train mIoU {3:>6.2%}, Time: {4} {5} '
+            print(msg.format(total_batch, loss.item(), train_acc, np.array(iou).mean(), time_dif, improve))
+
+
 

@@ -2,12 +2,14 @@ from config import *
 import torch
 from torch.utils.data.dataset import Dataset
 from torchvision.datasets import MNIST
-from PIL import Image
-from Mytransformer import *
 from  tqdm import tqdm
 
+from PIL import Image
+from Mytransformer import *
+
+from visualize import biggerpic_show
 class TransAndCacheDataset(Dataset):
-    def __init__(self, config, dataset, pre_processer: AddBgandRes, train=True, reload=False,transformer=None,  target_transformer=None):
+    def __init__(self, config, dataset, pre_processer: AddBg, train=True, reload=False,transformer=None,  target_transformer=None, justread=False):
         super().__init__()
 
         self.config = config
@@ -16,6 +18,7 @@ class TransAndCacheDataset(Dataset):
         self.save_target = self.data_path / ("train_target." if train else "test_target." + "ph")
         self.mode = "train dataset" if train else "test dataset"
         #
+        self.justread = justread
         self.reload = reload
         self._dataset = dataset
         self._dataLoader = None
@@ -34,7 +37,7 @@ class TransAndCacheDataset(Dataset):
         # preprocess
         self.create_dataset()
 
-
+        # self.__get
         if train:
             self.sample_show()
 
@@ -58,13 +61,16 @@ class TransAndCacheDataset(Dataset):
             return item #Image, tensor
 
     def create_dataset(self):
-        if self._is_save() and not self.reload:
+        if self.justread:
+            print("Just read, no read from files or save to files")
+            self._save_pic_to_dataset()
+
+        elif self._is_save() and not self.reload:
             print(self.mode,": 直接载入数据")
             self._load_dataset()
         else:
             print(self.mode, ": 转化数据，保存图片并载入数据")
-            self._save_pic_from_dataset()
-            self._load_dataset()
+            self._save_pic_to_dataset()
 
         self.len = len(self.data)
 
@@ -77,7 +83,7 @@ class TransAndCacheDataset(Dataset):
             return False
 
     # new version
-    def _save_pic_from_dataset(self):
+    def _save_pic_to_dataset(self):
         k = 0
         for img, label in tqdm(self._dataset):
             data_img, label_ten = self.pre_processer(img, label)
@@ -88,11 +94,14 @@ class TransAndCacheDataset(Dataset):
 
             if self.test_model and k == 5 :
                 break
-        self.data_path.mkdir(parents=True, exist_ok=True)
-        torch.save(self.data,  self.save_data)
-        torch.save(self.target, self.save_target)
-        print(f"已保存和载入{k}张图片和Label")
 
+        if not self.justread:
+            self.data_path.mkdir(parents=True, exist_ok=True)
+            torch.save(self.data,  self.save_data)
+            torch.save(self.target, self.save_target)
+            print(f"已保存和载入{k}张图片和Label")
+        else:
+            print(f"已载入{k}张图片和Label")
     # new version
     def _load_dataset(self):
         self.data = torch.load(self.save_data)
@@ -133,48 +142,17 @@ class TransAndCacheDataset(Dataset):
 
     #
 
+
     def sample_show(self):
         idx = [random.randint(0, self.len) for _ in range(100)]
-        self.biggerpic_show_2d(self._dataset, idx, self.data_path / "before.png")
-        self.biggerpic_show_3c(self.data, idx, self.data_path / "after.png")
+        dataset = [x for x, _ in self._dataset]
+        biggerpic_show(dataset, idx, self.data_path / "before.png")
+        biggerpic_show(self.data, idx, self.data_path / "after.png")
 
-    # # get data from self._dataset or self.data
-    # def _getItem(self, data, idx):
-    #     if type(data[0]) == tuple:
-    #         return data[idx][0]
-    #     else:
-    #         return data[idx]
-
-    def biggerpic_show_3c(self, data, pic_idx ,path):
-
-        shape = data[0].size
-        new_shape = [x * 10 for x in shape]
-        new_shape.append(3)
-        pic_arr = np.zeros(new_shape, dtype=np.uint8)
-        for i in range(10):
-            for j in range(10):
-                idx = pic_idx[i * 10 + j]
-                arr = np.array(data[idx])
-                pic_arr[i * shape[0] : (i + 1) * shape[0], j * shape[1] : (j + 1) * shape[1], :] = arr
-        img = Image.fromarray(pic_arr)
-        img.save(path)
-
-    def biggerpic_show_2d(self, data, pic_idx ,path):
-
-        shape = data[0][0].size
-        new_shape = [x * 10 for x in shape]
-        pic_arr = np.zeros(new_shape, dtype=np.uint8)
-        for i in range(10):
-            for j in range(10):
-                idx = pic_idx[i * 10 + j]
-                arr = np.array(data[idx][0])
-                pic_arr[i * shape[0] : (i + 1) * shape[0], j * shape[1] : (j + 1) * shape[1]] = arr
-        img = Image.fromarray(pic_arr)
-        img.save(path)
 
 if "__main__" == __name__:
     from leNet5 import LeNetConfig
-    from fcn_lenet import FCNConfig
+    from fcn_lenet_11c import FCNConfig
     config = LeNetConfig('../')
     minst_train_dataset = MNIST(str(config.data_path), download=True, train=True)
 

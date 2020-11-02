@@ -46,6 +46,8 @@ class Config(object):
         self.log_path.mkdir(parents=True, exist_ok=True)
         self.save_path = self.log_path / 'saved_dict' / (self.model_name + '.ckpt')  # 模型保存地址
         self.save_path.parent.mkdir(parents=True, exist_ok=True)
+        self.save_pic_path = self.save_path.parent / "pics"
+        self.save_pic_path.mkdir(parents=True, exist_ok=True)
         # Hyperparameters
         # self.filter_sizes = (5, 4, 3, 2)  # 每层的卷积核尺寸
         # self.num_filters = 64  # 卷积核数量(channels数)
@@ -60,17 +62,6 @@ class Config(object):
         self.learning_rate = 1e-3  # 学习率
         self.shuffle = True     # shuffle in a epoch
 
-
-    # 新添加的特性
-    def def_visdom(self):
-        import visdom
-        self.cur_batch_win_opts = {
-            'title': 'Epoch Loss Trace',
-            'xlabel': 'Batch Number',
-            'ylabel': 'Loss',
-            'width': 1200,
-            'height': 600,
-        }
 
     def __str__(self):
         return self.model_name

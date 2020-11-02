@@ -1,8 +1,12 @@
 import torch
 import time
 from datetime import timedelta
+from torchvision import transforms
 
+transform = transforms.Compose([
 
+        transforms.ToTensor()
+    ])
 # 权重初始化，默认xavier
 def init_network(model, method='xavier', exclude='embedding', seed=123):
     for name, w in model.named_parameters():

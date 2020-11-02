@@ -5,29 +5,36 @@ from leNet5 import *
 
 
 from dataprocess import TransAndCacheDataset
-from Mytransformer import AddBgandRes
+from Mytransformer import AddBgandBFlabel
 from leNet5 import LeNet
 from train_eval import SegmentationTrainer
-class FCNConfig(Config):
+from leNet5 import LeNetConfig
+from utils import transform
+
+class PreLeNetConfig_2c(LeNetConfig):
+    def __init__(self, model="premodel2"):
+        super().__init__(model=model)
+
+class FCNConfig_2c(Config):
     """配置参数"""
-    def __init__(self,path="../", model="fcnmodel", pre_path=""):
+    def __init__(self,path="../", model="fcnmodel_ch2", pre_path=""):
         super().__init__(path, model)
         self.batch_size = 64
-        self.num_epochs = 20
+        self.num_epochs = 12
         # 添加路径
         self.background_path = self.data_path /  "background"
-        self.trans_data_path = self.data_path / "trans"
+        self.trans_data_path = self.data_path / "trans_ch2"
         self.trans_train_path = self.trans_data_path / "train"
         self.trans_test_path = self.trans_data_path / "test"
 
         self.weight = 28
         self.height = 28
-        self.num_classes = 10
-
+        self.num_classes = 2
+        self.require_improvement = 3000
         #
         self.pre_model_path = pre_path
 
-class Pre_Lenet(LeNet):
+class Pre_Lenet_2c(LeNet):
 
 
     def forward(self, x):
@@ -42,7 +49,7 @@ class Pre_Lenet(LeNet):
         layer_out["y"] = pre_x
         return layer_out
 
-class FCN_Lene32t(nn.Module):
+class FCN_Lene32t_2c(nn.Module):
 
     def __init__(self, config, lenet):
         super().__init__()
@@ -79,24 +86,18 @@ class FCN_Lene32t(nn.Module):
         return x
 
 
-
 if '__main__' == __name__:
-    le_config = LeNetConfig()
-    fcn_config = FCNConfig(pre_path=le_config.save_path)
+    le_config = PreLeNetConfig_2c()
+    fcn_config = FCNConfig_2c(pre_path=le_config.save_path)
     # 下载源数据
-    # PIL image 对象需要 transform
-    transform = transforms.Compose([
-
-        transforms.ToTensor()
-    ])
     minst_train_dataset = torchvision.datasets.MNIST(str(fcn_config.data_path), download=True, train=True,
                                                      transform=None)
     minst_test_dataset = torchvision.datasets.MNIST(str(fcn_config.data_path), download=True, train=False,
                                                     transform=None)
     # 数据转化
     reload = False
-    train_dataset = TransAndCacheDataset(fcn_config, minst_train_dataset, AddBgandRes(fcn_config), train=True, reload=reload, transformer=transform, target_transformer=None)
-    test_dataset = TransAndCacheDataset(fcn_config, minst_test_dataset, AddBgandRes(fcn_config), train=False, reload=reload, transformer=transform,  target_transformer=None)
+    train_dataset = TransAndCacheDataset(fcn_config, minst_train_dataset, AddBgandBFlabel(fcn_config), train=True, reload=reload, transformer=transform, target_transformer=None)
+    test_dataset = TransAndCacheDataset(fcn_config, minst_test_dataset, AddBgandBFlabel(fcn_config), train=False, reload=reload, transformer=transform,  target_transformer=None)
 
     print("Data shape:", train_dataset[0][0].shape)
     print("Target shape:", train_dataset[0][1].shape)
@@ -108,12 +109,14 @@ if '__main__' == __name__:
 
     #建立模型
 
-    lenet = Pre_Lenet(le_config)
-    model = FCN_Lene32t(fcn_config, lenet)
+    lenet = Pre_Lenet_2c(le_config)
+    model = FCN_Lene32t_2c(fcn_config, lenet)
 
     # 训练模型
-    train = SegmentationTrainer(fcn_config, model, nn.BCEWithLogitsLoss(reduction="sum"))
+    train = SegmentationTrainer(fcn_config, model, nn.BCEWithLogitsLoss(reduction="mean"))
     train.train(train_dl, None, test_dl )
 
+    # # visualize the a reuslt png ang a test png.
+    # visual_model(fcn_config, model)
 
 

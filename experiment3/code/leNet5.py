@@ -83,7 +83,7 @@ def c2ccc(img):
 
 if '__main__' == __name__:
 
-    config = LeNetConfig('../')
+    config = LeNetConfig('../', model="lemodel")
 
     transform = transforms.Compose([
         # you can add other transformations in this list
