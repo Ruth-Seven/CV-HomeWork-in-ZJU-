@@ -64,6 +64,14 @@ def loss_windwon(config, viz, loss_list, cur_batch_win):
                                 update=(None if cur_batch_win is None else 'replace'),
                                 opts=config.cur_batch_win_opts)
 
+
+def test_loss_functino(y, predict):
+    return -((1 - y) * torch.log(1 - predict) + y * torch.log(predict)).sum().item()
+
 if __name__ == "__main__":
-    ones = torch.ones(2,2,device='cuda')
-    print(flatted_tensor_size(ones))
+    # ones = torch.ones(2,2,device='cuda')
+    # print(flatted_tensor_size(ones))
+    test = torch.tensor([1.0,1.0,1.0,0.0,0.0,0.0])
+    predict = torch.tensor([0.5, 0.1, 0.9, 0.5, 0.1, 0.9])
+    print(test_loss_functino(test, predict))
+    print(torch.nn.functional.binary_cross_entropy(test, predict).item())

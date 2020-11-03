@@ -14,6 +14,7 @@ import torch.nn.modules
 from numpy import random
 import numpy as np
 import torchsnooper
+from metrices import   RunningConfusionMatrix
 
 class Trainer(object):
     def __init__(self, config, model, cost_function=F.cross_entropy):
@@ -182,15 +183,20 @@ class SegmentationTrainer(Trainer):
 
     @cost_time
     # @torchsnooper.snoop()
-    def train(self, train_dl, dev_dl, test_dl):
+    def train(self, train_dl, dev_dl, test_dl, judgeMetrices="Loss"):
         start_time = time.time()
+        print(f"  Metrics:{judgeMetrices}  ")
         self.model.train()
+        label = [i for i in range(self.config.num_classes)]
+        cm  = RunningConfusionMatrix(label)
+
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.learning_rate,
                                      weight_decay=self.config.weight_decay)
 
         # 学习率指数衰减，每次epoch：学习率 = gamma * 学习率
         total_batch = 0  # 记录进行到多少batch
         best_loss = float('inf')
+        best_iou = float(0)
         last_improve = 0  # 记录上次验证集loss下降的batch数
         flag = False  # 记录是否很久没有效果提升
 
@@ -202,41 +208,56 @@ class SegmentationTrainer(Trainer):
             # scheduler.step() # 学习率衰减
             train_iter = iter(train_dl)
             for i, (trains, targets) in enumerate(train_iter):
-                optimizer.zero_grad()
+
                 trains, targets = trains.to(self.config.device), targets.to(self.config.device)
                 outputs = self.model(trains)
+                cm.update_matrix(targets.to('cpu').detach().numpy().argmax(1).reshape(-1),
+                                 outputs.to('cpu').detach().numpy().argmax(1).reshape(-1))
+
                 # debug:
                 ## Image.fromarray(self.targets[idx][5].numpy() * 255).show()
-
+                # if total_batch > 2000:
+                #     # from visualize import *
+                #     # show_pic_11c(trains[0] * 255 )
+                #     input()
                 loss = self.cost_function(outputs, targets)  # + F.mse_loss()
+                optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 if total_batch % 100 == 0:
-                    train_acc, iou = self._cal_batch_acc_ios(targets, outputs)
-
+                    self.model.eval()
+                    train_acc, _ = self._cal_batch_acc_ios(targets, outputs)
+                    train_miou = cm.compute_current_mean_intersection_over_union()
+                    # 这里要将evaluator的混淆矩阵重新初始化为0，防止上次的混淆矩阵影响下一次的训练集验证
+                    cm.reset()
                     # Show the singal of improvement
                     improve = ''
                     if dev_dl:
                         dev_acc, dev_loss = self.evaluate(dev_dl)
-                    # find and save the best model
-                    if dev_dl != None:
                         if dev_loss < best_loss:
                             best_loss = dev_loss
                             torch.save(self.model.state_dict(), str(self.config.save_path))
                             improve = '*'
                             last_improve = total_batch
                     else:
-                        train_loss = loss.item()
-                        if train_loss < best_loss:
-                            best_loss = train_loss
-                            torch.save(self.model.state_dict(), str(self.config.save_path))
-                            improve = '*'
-                            last_improve = total_batch
+                        if judgeMetrices == "loss":
+                            train_loss = loss.item()
+                            if train_loss < best_loss:
+                                best_loss = train_loss
+                                torch.save(self.model.state_dict(), str(self.config.save_path))
+                                improve = '*'
+                                last_improve = total_batch
+                        else:
+                            if train_miou > best_iou:
+                                best_iou = train_miou
+                                torch.save(self.model.state_dict(), str(self.config.save_path.parent / (self.config.model_name + "forIoU.ckpt")))
+                                improve = "*"
+                                last_improve = total_batch
 
                     # print each batch resluts
                     time_dif = get_time_dif(start_time)
-                    self.print_batch_result(total_batch, loss, train_acc, iou, dev_loss, dev_acc, time_dif, improve)
+                    self.print_batch_result(total_batch, loss, train_acc, train_miou, dev_loss, dev_acc, time_dif, improve)
 
                     # write results to tensorboard
                     writer.add_scalar("loss/train", loss.item(), total_batch)
@@ -245,6 +266,8 @@ class SegmentationTrainer(Trainer):
                     writer.add_scalar("acc/train", train_acc, total_batch)
                     if dev_acc:
                         writer.add_scalar("acc/dev", dev_acc, total_batch)
+
+                    writer.add_scalar("mIou/train", train_miou, total_batch)
                     self.model.train()
 
 
@@ -279,6 +302,8 @@ class SegmentationTrainer(Trainer):
         target_list = []
         predict_list = []
         # 其计算结果不进入torch计算图中
+        label = [i for i in range(self.config.num_classes)]
+        cm = RunningConfusionMatrix(label)
         with torch.no_grad():
             data_iter = data_dl
 
@@ -289,14 +314,18 @@ class SegmentationTrainer(Trainer):
                 loss = self.cost_function(outputs, targets)
                 loss_total += loss
 
+                cm.update_matrix(targets.to('cpu').detach().numpy().argmax(1).reshape(-1),
+                                 outputs.to('cpu').detach().numpy().argmax(1).reshape(-1))
+
                 # 获取运算结果，并取最大值为预测值
                 # 显存不够，只能使用CPU
                 predict_list.append(outputs.to("cpu"))
                 target_list.append(targets.to("cpu"))
 
-
-        accs, ious = self._cal_batch_acc_ios(torch.cat((target_list), 0), torch.cat((predict_list), 0))
-        return accs, ious, loss_total / len(data_iter)
+        test_miou = cm.compute_current_mean_intersection_over_union()
+        # 这里要将evaluator的混淆矩阵重新初始化为0，防止上次的混淆矩阵影响下一次的训练集验证
+        accs, _ = self._cal_batch_acc_ios(torch.cat((target_list), 0), torch.cat((predict_list), 0))
+        return accs, test_miou, loss_total / len(data_iter)
 
     def _tensor2numpy(self, data):
         if type(data) == list or type(data) == tuple:
@@ -353,9 +382,9 @@ class SegmentationTrainer(Trainer):
         print("测试结果：")
         msg = '{0:s} accuracy: {1:>6.2%},  {0:s} loss: {2:>5.2}'
         print(msg.format(mode, acc, loss))
-        print(mode, " IoU:\n")
-        for i, item in enumerate(iou):
-            print("{0:>5} {1:^6.4}".format(i, item))
+        print(mode, f" IoU: {iou}\n")
+        # for i, item in enumerate(iou):
+        #     print("{0:>5} {1:^6.4}".format(i, item))
 
         # print intermidiatelly result
 
@@ -366,6 +395,3 @@ class SegmentationTrainer(Trainer):
         else:
             msg = 'Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  Train mIoU {3:>6.2%}, Time: {4} {5} '
             print(msg.format(total_batch, loss.item(), train_acc, np.array(iou).mean(), time_dif, improve))
-
-
-

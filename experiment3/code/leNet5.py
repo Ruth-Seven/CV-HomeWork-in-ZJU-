@@ -37,6 +37,7 @@ class ConvandPool(nn.Module):
         x = self.pool(x)
         return x
 
+
 class LeNet(nn.Module):
     def __init__(self, lenetconfig):
         super().__init__()
@@ -84,6 +85,9 @@ def c2ccc(img):
 if '__main__' == __name__:
 
     config = LeNetConfig('../', model="lemodel")
+    # from fcn_lenet_11c import PreLeNetConfig_11c, Pre_Lenet_11c
+    # config = PreLeNetConfig_11c()
+    ##
 
     transform = transforms.Compose([
         # you can add other transformations in this list
@@ -96,7 +100,9 @@ if '__main__' == __name__:
     # PIL image 对象需要 transform
     train_dl = dataloader.DataLoader(minst_train_dataset, config.batch_size, shuffle=config.shuffle, num_workers=config.dataset_workers)
     test_dl = dataloader.DataLoader(minst_test_dataset, config.batch_size, shuffle=config.shuffle, num_workers=config.dataset_workers)
+
     model = LeNet(config)
+    # model = Pre_Lenet_11c(config)
 
     print(f"The length fo train dataset:{len(minst_train_dataset)}")
     print(f"The length fo test dataset:{len(minst_test_dataset)}")

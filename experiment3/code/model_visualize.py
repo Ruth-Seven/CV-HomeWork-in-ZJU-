@@ -12,12 +12,12 @@ from fcn_lenet_2c import FCNConfig_2c, FCN_Lene32t_2c, Pre_Lenet_2c, PreLeNetCon
 
 from visualize import biggerpic_show
 from dataprocess import TransAndCacheDataset
-from Mytransformer import AddBgandBFlabel
+from Mytransformer import AddBgandBFlabel,AddBgandMulLabel
 from torchvision.datasets import MNIST
 from torch.utils.data.dataset import Subset
 from torch.utils.data import DataLoader
 
-def visual_model(fcn_config, model ):
+def visual_model(fcn_config, model, test=False):
 
     #config
     PICS_NUM = 100
@@ -26,13 +26,26 @@ def visual_model(fcn_config, model ):
     mnist_idx=[random.randint(0, len(minst_train_dataset)) for _ in range(PICS_NUM * 3)]
 
     subset = Subset(minst_train_dataset, mnist_idx)
-    train_dataset = TransAndCacheDataset(fcn_config, subset, AddBgandBFlabel(fcn_config),
-                                         train=True,transformer=transform,justread=True)
+    if fcn_config.num_classes == 2:
+        train_dataset = TransAndCacheDataset(fcn_config, subset, AddBgandBFlabel(fcn_config),
+                                            train=True,transformer=transform,justread=True)
+    else:
+        train_dataset = TransAndCacheDataset(fcn_config, subset, AddBgandMulLabel(fcn_config),
+                                             train=True, transformer=transform, justread=True)
     train_dl = DataLoader(train_dataset, PICS_NUM, shuffle=False)
 
 
     #predict data
     model.load_state_dict(torch.load(fcn_config.save_path))
+
+    if test:
+        model_path = fcn_config.save_path.parent / (fcn_config.model_name + "forIoU.ckpt")
+        model.load_state_dict(torch.load(fcn_config.save_path.parent / (fcn_config.model_name + "forIoU.ckpt")))
+    else:
+        model_path = fcn_config.save_path
+
+    print(f"载入模型：{model_path}")
+
     model.eval()
     train_datas, target_data = next(iter(train_dl))
     predicts = model(train_datas.to(fcn_config.device)).cpu().detach()
@@ -42,7 +55,7 @@ def visual_model(fcn_config, model ):
     assert (targets_val > 255).sum() == 0 and (targets_val < 0).sum() == 0
 
 
-    # original data
+
     origin_data = []
     for i in range(PICS_NUM):
         origin_data.append(subset[i][0])
@@ -67,3 +80,8 @@ if '__main__' == __name__:
     model = FCN_Lene32t_11c(fcn_config, lenet)
     visual_model(fcn_config, model)
 
+    pre_leconfig = PreLeNetConfig_11c()
+    fcn_config = FCNConfig_11c(pre_path=pre_leconfig.save_path)
+    lenet = Pre_Lenet_11c(pre_leconfig)
+    model = FCN_Lene32t_11c(fcn_config, lenet)
+    visual_model(fcn_config, model, test=True)

@@ -11,9 +11,11 @@ from train_eval import SegmentationTrainer
 from leNet5 import LeNetConfig
 from utils import transform
 
+
 class PreLeNetConfig_2c(LeNetConfig):
     def __init__(self, model="premodel2"):
         super().__init__(model=model)
+
 
 class FCNConfig_2c(Config):
     """配置参数"""
@@ -30,12 +32,12 @@ class FCNConfig_2c(Config):
         self.weight = 28
         self.height = 28
         self.num_classes = 2
-        self.require_improvement = 3000
+        self.require_improvement = 1000
         #
         self.pre_model_path = pre_path
 
-class Pre_Lenet_2c(LeNet):
 
+class Pre_Lenet_2c(LeNet):
 
     def forward(self, x):
         pre_x = super().forward(x)
@@ -82,7 +84,7 @@ class FCN_Lene32t_2c(nn.Module):
         x = self.transconv3(skip_link1)
         x = self.batch3(x)
         x = self.classifier(x)
-        x = F.softmax(x, dim=1)
+        x = torch.sigmoid(x)
         return x
 
 
@@ -113,7 +115,7 @@ if '__main__' == __name__:
     model = FCN_Lene32t_2c(fcn_config, lenet)
 
     # 训练模型
-    train = SegmentationTrainer(fcn_config, model, nn.BCEWithLogitsLoss(reduction="mean"))
+    train = SegmentationTrainer(fcn_config, model, nn.BCELoss())
     train.train(train_dl, None, test_dl )
 
     # # visualize the a reuslt png ang a test png.

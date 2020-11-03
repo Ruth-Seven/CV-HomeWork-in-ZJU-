@@ -52,9 +52,9 @@ def biggerpic_show(pics, pic_idx, path):
                 for k in range(3):
                     pic_arr[i * shape[0]: (i + 1) * shape[0], j * shape[1]: (j + 1) * shape[1], k] = arr[:, :]
             elif real_shape[-1] > 3:
-                list_bgb = np.array([(a, a, a) for a in np.linspace(0, 255, real_shape[-1])])
+                # 3 * 3 * 2 种颜色分配
+                list_bgb = np.array([(x, y, z)   for x in np.linspace(0, 255, 3) for y in np.linspace(0, 255, 3) for z in np.linspace(0, 255, 2)])
                 temp = list_bgb[max_arr] #.transpose(1, 2, 0)
-                print(np.max(temp))
                 assert temp.shape == (28, 28, 3)
                 pic_arr[i * shape[0]: (i + 1) * shape[0], j * shape[1]: (j + 1) * shape[1],:] = temp
                 # start_ch1 = real_shape[-1] // 3
@@ -85,16 +85,20 @@ def biggerpic_show(pics, pic_idx, path):
     img = Image.fromarray(pic_arr.astype(np.uint8))
     img.save(path)
     print(f"已保存图片{path.name}")
-
-def show_pic_11c(arr):
+# @torchsnooper.snoop()
+def show_pic_11c(arr, l=0):
     shape = arr.shape
-    assert shape == (11,28,28)
-    new_arr = arr.sum(axis=0)
-    if type(new_arr) == torch.Tensor:
-        new_arr = new_arr.cpu().detach().numpy()
-    Image.fromarray(new_arr.astype(np.uint8)).show()
+    if shape[0] == shape[1]: #
+        arr = arr.permute(2,0,1)
+        shape = arr.shape
 
-    weight = 0
+    if type(arr) == torch.Tensor:
+        arr = arr.cpu().detach().numpy()
+    arr.astype(np.uint8)
+    cat_arr = arr.reshape(shape[0] * shape[2], shape[1] ) #reshape的综合应用
+    Image.fromarray(cat_arr).show()
+    Image.fromarray(arr[l, :,:]).show()
+
 
 # def biggerpic_show_1c(data, pic_idx, path):
 #     shape = data[0].size
@@ -122,6 +126,8 @@ def show_pic_11c(arr):
 
 
 if __name__ == "__main__":
-    ...
+    test = torch.rand(4,28,28) * 255
+    test[:,14:17,:] = 255
+    show_pic_11c(test)
 
 
